@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-def cpu_ops(A, B):
+def numpy_ops(A, B):
     C = np.dot(A, B)
     A_mean = np.mean(A, axis=0)
     B_mean = np.mean(B, axis=0)
@@ -15,7 +15,7 @@ def cpu_ops(A, B):
     B_normalized = (B - B_mean) / np.sqrt(B_var)
     return C
 
-def gpu_ops(A, B):
+def torch_ops(A, B):
     C = torch.mm(A, B)
     A_mean = torch.mean(A, axis=0)
     B_mean = torch.mean(B, axis=0)
@@ -33,18 +33,27 @@ if __name__=='__main__':
 
     start_t = time.time()
     for i in range(100):
-        C = cpu_ops(A, B)
+        C = numpy_ops(A, B)
     print('gpu cost time: ', time.time()-start_t)
+
+    A_tensor_cpu = torch.from_numpy(A)
+    B_tensor_cpu = torch.from_numpy(B)
+    start_t = time.time()
+    for i in range(100):
+        C_tensor_cpu = torch_ops(A_tensor_cpu, B_tensor_cpu)
+    print('pytorch cpu cost time: ', time.time()-start_t)
 
     A_tensor_gpu = torch.from_numpy(A).to(device='cuda')
     B_tensor_gpu = torch.from_numpy(B).to(device='cuda')
     start_t = time.time()
     for i in range(100):
-        C_tensor_gpu = gpu_ops(A_tensor_gpu, B_tensor_gpu)
-    print('gpu cost time: ', time.time()-start_t)
+        C_tensor_gpu = torch_ops(A_tensor_gpu, B_tensor_gpu)
+    print('pytorch gpu cost time: ', time.time()-start_t)
 
     print('C[500, 500] is ', C[500, 500])
+    print('C_tensor_cpu[500, 500] is ', C_tensor_cpu[500, 500])
     print('C_tensor_gpu[500, 500] is ', C_tensor_gpu[500, 500])
 
     print('start sleep...')
     time.sleep(15)
+
