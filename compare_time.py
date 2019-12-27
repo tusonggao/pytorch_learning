@@ -28,7 +28,7 @@ def torch_ops(A, B):
 if __name__=='__main__':
     print('hello world!')
 
-    A = np.random.randn(1000, 3000)
+    A = np.random.randn(2000, 3000)
     B = np.random.randn(3000, 1000)
 
     start_t = time.time()
