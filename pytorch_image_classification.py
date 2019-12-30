@@ -1,6 +1,7 @@
 from __future__ import print_function
 import os
 import sys
+import time
 import argparse
 import torch
 import torch.nn as nn
@@ -10,6 +11,7 @@ from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 
 print('prog starts here!')
+start_t_global = time.time()
 
 class Net(nn.Module):
     def __init__(self):
@@ -135,3 +137,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    print('total cost time: ', time.time() - start_t_global)
