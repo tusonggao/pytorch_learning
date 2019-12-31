@@ -1,249 +1,212 @@
 from __future__ import print_function, division
 import os
+import sys
 import torch
+import random
+from pathlib import Path
 import pandas as pd
+from PIL import Image
 from skimage import io, transform
 import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
-
 # Ignore warnings
 import warnings
 warnings.filterwarnings("ignore")
 
+print('prog starts here!')
+
+# import multiprocessing
+# if __name__ == "__main__":
+#     p = multiprocessing.Pool(10)
 # plt.ion()   # interactive mode
 
-data_path = './data/faces/face_landmarks.csv'
+def get_all_files(dir_name):   # 递归得到文件夹下的所有文件
+    all_files_lst = []
+    def get_all_files_worker(path):
+        allfilelist = os.listdir(path)
+        for file in allfilelist:
+            filepath = os.path.join(path, file)
+            #判断是不是文件夹
+            if os.path.isdir(filepath):
+                get_all_files_worker(filepath)
+            else:
+                all_files_lst.append(filepath)
+    get_all_files_worker(dir_name)
+    return all_files_lst
 
-landmarks_frame = pd.read_csv('data/faces/face_landmarks.csv')
 
-n = 65
-img_name = landmarks_frame.iloc[n, 0]
-landmarks = landmarks_frame.iloc[n, 1:].values
-landmarks = landmarks.astype('float').reshape(-1, 2)
+def SaltAndPepper(src, percetage=0.1):
+    SP_NoiseImg = src.copy()
+    SP_NoiseNum = int(percetage * src.shape[0] * src.shape[1])
+    for i in range(SP_NoiseNum):
+        randR = np.random.randint(0, src.shape[0] - 1)
+        randG = np.random.randint(0, src.shape[1] - 1)
+        randB = np.random.randint(0, 3)
+        if np.random.randint(0, 1) == 0:
+            SP_NoiseImg[randR, randG, randB] = 0
+        else:
+            SP_NoiseImg[randR, randG, randB] = 255
+    return SP_NoiseImg
 
-print('Image name: {}'.format(img_name))
-print('Landmarks shape: {}'.format(landmarks.shape))
-print('First 4 Landmarks: {}'.format(landmarks[:4]))
 
-def show_landmarks(image, landmarks):
-    """Show image with landmarks"""
-    plt.imshow(image)
-    plt.scatter(landmarks[:, 0], landmarks[:, 1], s=10, marker='.', c='r')
-    plt.pause(0.001)  # pause a bit so that plots are updated
+def addGaussianNoise(image, percetage=0.1):
+    G_Noiseimg = image.copy()
+    w = image.shape[1]
+    h = image.shape[0]
+    G_NoiseNum = int(percetage * image.shape[0] * image.shape[1])
+    for i in range(G_NoiseNum):
+        temp_x = np.random.randint(0, h)
+        temp_y = np.random.randint(0, w)
+        G_Noiseimg[temp_x][temp_y][np.random.randint(3)] = np.random.randn(1)[0]
+    return G_Noiseimg
+    # im = Image.open(data_path + '/negative/138.jpg')
+    #
+    # im_arr = np.array(im)  # image类 转 numpy
+    # print('type im_arr ', type(im_arr), 'im_arr.shape is ', im_arr.shape)
 
-plt.figure()
-show_landmarks(io.imread(os.path.join('data/faces/', img_name)), landmarks)
-plt.show()
 
-class FaceLandmarksDataset(Dataset):
-    """Face Landmarks dataset."""
+def generateMutationFiles(file_name):
+    p = Path(file_name)
+    p.parent.mkdir(exist_ok=True, parents=True)  # 递归创建文件目录
 
-    def __init__(self, csv_file, root_dir, transform=None):
-        """
-        Args:
-            csv_file (string): Path to the csv file with annotations.
-            root_dir (string): Directory with all the images.
-            transform (callable, optional): Optional transform to be applied
-                on a sample.
-        """
-        self.landmarks_frame = pd.read_csv(csv_file)
+    im = Image.open(file_name)
+    im = im.convert('RGB')
+
+    im_rotate_90 = im.transpose(Image.ROTATE_90)
+    new_file_name = Path(p.parent, p.stem + '_rotate_90' + p.suffix)
+    im_rotate_90.save(new_file_name, 'JPEG')
+
+    im_rotate_180 = im.transpose(Image.ROTATE_180)
+    new_file_name = Path(p.parent, p.stem + '_rotate_180' + p.suffix)
+    im_rotate_180.save(new_file_name, 'JPEG')
+
+    im_rotate_270 = im.transpose(Image.ROTATE_270)
+    new_file_name = Path(p.parent, p.stem + '_rotate_270' + p.suffix)
+    im_rotate_270.save(new_file_name, 'JPEG')
+    return
+
+def copy_resize_file(src_file_name, target_file_name):
+    p = Path(target_file_name)
+    p.parent.mkdir(exist_ok=True, parents=True)  # 递归创建文件目录
+
+    im = Image.open(src_file_name)
+    im_resized = im.resize((512, 512))
+    im_resized = im_resized.convert('RGB')
+    im_resized.save(target_file_name, 'JPEG')
+    return
+
+def data_preprocessing():
+    print('in data_preprocessing')
+    origin_root_dir = './data/chufang_data/'
+    target_root_dir = './data/chufang_data_processed/'
+    positive_files_lst = get_all_files(origin_root_dir + '/positive/')
+    random.shuffle(positive_files_lst)
+    negative_files_lst = get_all_files(origin_root_dir + '/negative/')
+    random.shuffle(positive_files_lst)
+    positive_files_num, negative_files_num = len(positive_files_lst), len(negative_files_lst)
+
+    train_ratio, val_ratio, test_ratio = 0.65, 0.15, 0.30
+
+    for i, file_name in enumerate(positive_files_lst[:int(train_ratio*positive_files_num)]):
+        print('file_name is ', file_name)
+        new_file_name = target_root_dir + '/train/positive/' + str(i) + '.jpg'
+        copy_resize_file(file_name, new_file_name)
+        generateMutationFiles(new_file_name)
+
+    for i, file_name in enumerate(negative_files_lst[:int(train_ratio*negative_files_num)]):
+        print('file_name is ', file_name)
+        new_file_name = target_root_dir + '/train/negative/' + str(i) + '.jpg'
+        copy_resize_file(file_name, new_file_name)
+        generateMutationFiles(new_file_name)
+
+    ##########################################################################################
+
+    for i, file_name in enumerate(positive_files_lst[int(train_ratio * positive_files_num):
+                                  int(train_ratio * negative_files_num + val_ratio * negative_files_num)]):
+        print('file_name is ', file_name)
+        new_file_name = target_root_dir + '/val/positive/' + str(i) + '.jpg'
+        copy_resize_file(file_name, new_file_name)
+        generateMutationFiles(new_file_name)
+
+    for i, file_name in enumerate(negative_files_lst[int(train_ratio * negative_files_num):
+                                  int(train_ratio * negative_files_num + val_ratio * negative_files_num)]):
+        print('file_name is ', file_name)
+        new_file_name = target_root_dir + '/val/negative/' + str(i) + '.jpg'
+        copy_resize_file(file_name, new_file_name)
+        generateMutationFiles(new_file_name)
+
+    ##########################################################################################
+
+    for i, file_name in enumerate(positive_files_lst[
+                                  int(train_ratio * negative_files_num + val_ratio*negative_files_num):]):
+        print('file_name is ', file_name)
+        new_file_name = target_root_dir + '/test/positive/' + str(i) + '.jpg'
+        copy_resize_file(file_name, new_file_name)
+        generateMutationFiles(new_file_name)
+
+    for i, file_name in enumerate(negative_files_lst[
+                                  int(train_ratio * negative_files_num + val_ratio*negative_files_num):]):
+        print('file_name is ', file_name)
+        new_file_name = target_root_dir + '/test/negative/' + str(i) + '.jpg'
+        copy_resize_file(file_name, new_file_name)
+        generateMutationFiles(new_file_name)
+
+    ##########################################################################################
+
+    print('len of positive_files_lst is ', len(positive_files_lst))
+    print('len of negative_files_lst is ', len(negative_files_lst))
+    print('positive_files_lst is ', positive_files_lst)
+
+    return positive_files_lst
+
+data_preprocessing()
+sys.exit(0)
+
+class ChufangDataset(Dataset):
+    def __init__(self, root_dir, transform=None):
         self.root_dir = root_dir
         self.transform = transform
+        self.load(root_dir)
+
+    def load(self, root_dir):
+        self.samples = []
+        self.positive_files_lst = get_all_files(root_dir + '/positive/')
+        self.negative_files_lst = get_all_files(root_dir + '/negative/')
+        random.shuffle(self.positive_files_lst)
+        random.shuffle(self.negative_files_lst)
 
     def __len__(self):
-        return len(self.landmarks_frame)
+        return len(self.positive_files_lst) + len(self.negative_files_lst)
 
     def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
+        if idx < len(self.positive_files_lst):
+            img_name, label = self.positive_files_lst[idx], 1
+        else:
+            img_name, label = self.negative_files_lst[idx-len(self.positive_files_lst)], 0
 
-        img_name = os.path.join(self.root_dir,
-                                self.landmarks_frame.iloc[idx, 0])
         image = io.imread(img_name)
-        landmarks = self.landmarks_frame.iloc[idx, 1:]
-        landmarks = np.array([landmarks])
-        landmarks = landmarks.astype('float').reshape(-1, 2)
-        sample = {'image': image, 'landmarks': landmarks}
-
+        sample = {'image': image, 'label': label}
         if self.transform:
             sample = self.transform(sample)
-
         return sample
 
-
-# face_dataset = FaceLandmarksDataset(csv_file='data/faces/face_landmarks.csv',
-#                                     root_dir='data/faces/')
-#
-# fig = plt.figure()
-#
-# for i in range(len(face_dataset)):
-#     sample = face_dataset[i]
-#
-#     print(i, sample['image'].shape, sample['landmarks'].shape)
-#
-#     ax = plt.subplot(1, 4, i + 1)
-#     plt.tight_layout()
-#     ax.set_title('Sample #{}'.format(i))
-#     ax.axis('off')
-#     show_landmarks(**sample)
-#
-#     if i == 3:
-#         plt.show()
-#         break
-
-
-class Rescale(object):
-    """Rescale the image in a sample to a given size.
-
-    Args:
-        output_size (tuple or int): Desired output size. If tuple, output is
-            matched to output_size. If int, smaller of image edges is matched
-            to output_size keeping aspect ratio the same.
-    """
-
-    def __init__(self, output_size):
-        assert isinstance(output_size, (int, tuple))
-        self.output_size = output_size
-
-    def __call__(self, sample):
-        image, landmarks = sample['image'], sample['landmarks']
-
-        h, w = image.shape[:2]
-        if isinstance(self.output_size, int):
-            if h > w:
-                new_h, new_w = self.output_size * h / w, self.output_size
-            else:
-                new_h, new_w = self.output_size, self.output_size * w / h
-        else:
-            new_h, new_w = self.output_size
-
-        new_h, new_w = int(new_h), int(new_w)
-
-        img = transform.resize(image, (new_h, new_w))
-
-        # h and w are swapped for landmarks because for images,
-        # x and y axes are axis 1 and 0 respectively
-        landmarks = landmarks * [new_w / w, new_h / h]
-
-        return {'image': img, 'landmarks': landmarks}
-
-
-class RandomCrop(object):
-    """Crop randomly the image in a sample.
-
-    Args:
-        output_size (tuple or int): Desired output size. If int, square crop
-            is made.
-    """
-
-    def __init__(self, output_size):
-        assert isinstance(output_size, (int, tuple))
-        if isinstance(output_size, int):
-            self.output_size = (output_size, output_size)
-        else:
-            assert len(output_size) == 2
-            self.output_size = output_size
-
-    def __call__(self, sample):
-        image, landmarks = sample['image'], sample['landmarks']
-
-        h, w = image.shape[:2]
-        new_h, new_w = self.output_size
-
-        top = np.random.randint(0, h - new_h)
-        left = np.random.randint(0, w - new_w)
-
-        image = image[top: top + new_h,
-                      left: left + new_w]
-
-        landmarks = landmarks - [left, top]
-
-        return {'image': image, 'landmarks': landmarks}
-
-
 class ToTensor(object):
-    """Convert ndarrays in sample to Tensors."""
-
     def __call__(self, sample):
-        image, landmarks = sample['image'], sample['landmarks']
-
-        # swap color axis because
-        # numpy image: H x W x C
-        # torch image: C X H X W
+        image, label = sample['image'], sample['label']
         image = image.transpose((2, 0, 1))
-        return {'image': torch.from_numpy(image),
-                'landmarks': torch.from_numpy(landmarks)}
+        return {'image': torch.from_numpy(image), 'label': torch.tensor(label)}
 
-
-scale = Rescale(256)
-crop = RandomCrop(128)
-composed = transforms.Compose([Rescale(256),
-                               RandomCrop(224)])
-
-
-# fig = plt.figure()
-# sample = face_dataset[65]
-# for i, tsfrm in enumerate([scale, crop, composed]):
-#     transformed_sample = tsfrm(sample)
-#
-#     ax = plt.subplot(1, 3, i + 1)
-#     plt.tight_layout()
-#     ax.set_title(type(tsfrm).__name__)
-#     show_landmarks(**transformed_sample)
-#
-# plt.show()
-
-
-transformed_dataset = FaceLandmarksDataset(csv_file='data/faces/face_landmarks.csv',
-                                           root_dir='data/faces/',
-                                           transform=transforms.Compose([
-                                               Rescale(256),
-                                               RandomCrop(224),
-                                               ToTensor()
-                                           ]))
-
-# for i in range(len(transformed_dataset)):
-#     sample = transformed_dataset[i]
-#     print(i, sample['image'].size(), sample['landmarks'].size())
-#     if i == 3:
-#         break
-
-
-dataloader = DataLoader(transformed_dataset, batch_size=4,
-                        shuffle=True, num_workers=4)
-
-# Helper function to show a batch
-def show_landmarks_batch(sample_batched):
-    """Show image with landmarks for a batch of samples."""
-    images_batch, landmarks_batch = \
-            sample_batched['image'], sample_batched['landmarks']
-    batch_size = len(images_batch)
-    im_size = images_batch.size(2)
-    grid_border_size = 2
-
-    grid = utils.make_grid(images_batch)
-    plt.imshow(grid.numpy().transpose((1, 2, 0)))
-
-    for i in range(batch_size):
-        plt.scatter(landmarks_batch[i, :, 0].numpy() + i * im_size + (i + 1) * grid_border_size,
-                    landmarks_batch[i, :, 1].numpy() + grid_border_size,
-                    s=10, marker='.', c='r')
-
-        plt.title('Batch from dataloader')
+transformed_dataset = FaceLandmarksDataset(root_dir='./data/chufang_data_processed/train/',
+                                           transform=transforms.Compose([ToTensor()]))
+dataloader = DataLoader(transformed_dataset, batch_size=4, shuffle=True, num_workers=4)
 
 for i_batch, sample_batched in enumerate(dataloader):
-    print('get here!')
-    print(i_batch, sample_batched['image'].size(),
-          sample_batched['landmarks'].size())
+    print(i_batch, sample_batched['image'].size(), sample_batched['label'].size())
 
-    # observe 4th batch and stop.
-    if i_batch == 3:
-        plt.figure()
-        show_landmarks_batch(sample_batched)
-        plt.axis('off')
-        plt.ioff()
-        plt.show()
-        break
+
+print('prog ends here!')
+
+
 
