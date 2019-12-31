@@ -14,6 +14,8 @@ warnings.filterwarnings("ignore")
 
 # plt.ion()   # interactive mode
 
+data_path = './data/faces/face_landmarks.csv'
+
 landmarks_frame = pd.read_csv('data/faces/face_landmarks.csv')
 
 n = 65
