@@ -1,5 +1,6 @@
 from __future__ import print_function, division
 import os
+import time
 import sys
 import torch
 import random
@@ -100,7 +101,9 @@ def copy_resize_file(src_file_name, target_file_name):
     p.parent.mkdir(exist_ok=True, parents=True)  # 递归创建文件目录
 
     im = Image.open(src_file_name)
-    im_resized = im.resize((512, 512))
+    im_resized = im.resize((256, 256))
+    #im_resized = im.resize((512, 512))
+    #im_resized = im.resize((28, 28))
     im_resized = im_resized.convert('RGB')
     im_resized.save(target_file_name, 'JPEG')
     return
@@ -132,7 +135,7 @@ def data_preprocessing():
     ##########################################################################################
 
     for i, file_name in enumerate(positive_files_lst[int(train_ratio * positive_files_num):
-                                  int(train_ratio * negative_files_num + val_ratio * negative_files_num)]):
+                                  int(train_ratio * positive_files_num + val_ratio * positive_files_num)]):
         print('file_name is ', file_name)
         new_file_name = target_root_dir + '/val/positive/' + str(i) + '.jpg'
         copy_resize_file(file_name, new_file_name)
@@ -148,7 +151,7 @@ def data_preprocessing():
     ##########################################################################################
 
     for i, file_name in enumerate(positive_files_lst[
-                                  int(train_ratio * negative_files_num + val_ratio*negative_files_num):]):
+                                  int(train_ratio * positive_files_num + val_ratio*positive_files_num):]):
         print('file_name is ', file_name)
         new_file_name = target_root_dir + '/test/positive/' + str(i) + '.jpg'
         copy_resize_file(file_name, new_file_name)
@@ -169,8 +172,6 @@ def data_preprocessing():
 
     return positive_files_lst
 
-# data_preprocessing()
-# sys.exit(0)
 
 class ChufangDataset(Dataset):
     def __init__(self, root_dir, transform=None):
@@ -203,9 +204,9 @@ class ChufangDataset(Dataset):
 class ToTensor(object):
     def __call__(self, sample):
         image, label = sample['image'], sample['label']
+        image = image.astype('float32')
         image = image.transpose((2, 0, 1))
-        return {'image': torch.from_numpy(image),
-                'label': torch.tensor(label)}
+        return torch.from_numpy(image), torch.tensor(label)
 
 
 class Net(nn.Module):
@@ -214,27 +215,41 @@ class Net(nn.Module):
         self.conv1 = nn.Conv2d(3, 32, 3, 1)
         self.relu1 = nn.ReLU()
 
-        self.conv2 = nn.Conv2d(32, 64, 3, 1)
+        self.conv2 = nn.Conv2d(32, 32, 3, 1)
         self.relu2 = nn.ReLU()
+
+        self.conv3 = nn.Conv2d(32, 32, 3, 1)
+        self.relu3 = nn.ReLU()
 
         self.pool = nn.MaxPool2d(2)
 
         self.dropout1 = nn.Dropout2d(0.25)
         self.dropout2 = nn.Dropout2d(0.5)
-        self.fc1 = nn.Linear(9216, 128)
+
+        #self.fc1 = nn.Linear(9216, 128)
+        #self.fc1 = nn.Linear(123008, 128)
+        self.fc1 = nn.Linear(508032, 128)
         self.fc2 = nn.Linear(128, 2)
+        #self.fc2 = nn.Linear(-1, 2)
 
     def forward(self, x):
         x = self.conv1(x)
         x = F.relu(x)
+        #x = F.max_pool2d(x, 2)
+
         x = self.conv2(x)
+        x = F.relu(x)
         x = F.max_pool2d(x, 2)
-        x = self.dropout1(x)
+
+        #x = self.dropout1(x)
         x = torch.flatten(x, 1)
+
         x = self.fc1(x)
+        #x = nn.Linear(x.size(0), 128)(x)
         x = F.relu(x)
         x = self.dropout2(x)
         x = self.fc2(x)
+        #x = nn.Linear(x.size(0), 2)(x)
         output = F.log_softmax(x, dim=1)
         return output
 
@@ -242,16 +257,20 @@ class Net(nn.Module):
 def train(model, device, train_loader, optimizer, epoch):
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
+        #print('in train data is ', data.shape, 'data.dtype is ', data.dtype)
+        #print('in train target is ', target.shape, 'target.dtype is ', target.dtype)
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
         loss = F.nll_loss(output, target)
         loss.backward()
         optimizer.step()
+        time.sleep(0.001)
         if batch_idx % 10 == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.item()))
+
 
 def test(model, device, test_loader):
     model.eval()
@@ -299,14 +318,14 @@ def main():
     # args = parser.parse_args()
 
     use_cuda = torch.cuda.is_available()
-    print('use_cuda is ', use_cuda)
+    #print('use_cuda is ', use_cuda)
 
-    print('get here 111')
+    #print('get here 111')
 
     torch.manual_seed(42)
 
     device = torch.device("cuda" if use_cuda else "cpu")
-    print('device is ', device)
+    #print('device is ', device)
 
     kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
 
@@ -321,7 +340,7 @@ def main():
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=4, shuffle=True)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=4, shuffle=True)
 
-    print('get here 222')
+    #print('get here 222')
 
     model = Net().to(device)
     optimizer = optim.Adadelta(model.parameters(), lr=0.5)
@@ -338,6 +357,7 @@ def main():
 
 
 if __name__=='__main__':
+    #data_preprocessing()
     main()
 
 #dataloader = DataLoader(transformed_dataset, batch_size=4, shuffle=True, num_workers=4)

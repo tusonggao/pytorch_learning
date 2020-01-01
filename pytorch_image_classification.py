@@ -41,6 +41,8 @@ class Net(nn.Module):
 def train(args, model, device, train_loader, optimizer, epoch):
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
+        print('data.shape is ', data.size())
+        print('target.shape is ', target.size())
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
