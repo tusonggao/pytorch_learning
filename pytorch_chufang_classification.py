@@ -23,6 +23,8 @@ from torch.optim.lr_scheduler import StepLR
 import warnings
 warnings.filterwarnings("ignore")
 
+random.seed(7777)
+
 print('prog starts here!')
 
 # import multiprocessing
@@ -101,8 +103,9 @@ def copy_resize_file(src_file_name, target_file_name):
     p.parent.mkdir(exist_ok=True, parents=True)  # 递归创建文件目录
 
     im = Image.open(src_file_name)
-    im_resized = im.resize((256, 256))
-    #im_resized = im.resize((512, 512))
+    #im_resized = im.resize((256, 256))
+    #im_resized = im.resize((128, 128))
+    im_resized = im.resize((512, 512))
     #im_resized = im.resize((28, 28))
     im_resized = im_resized.convert('RGB')
     im_resized.save(target_file_name, 'JPEG')
@@ -112,13 +115,14 @@ def data_preprocessing():
     print('in data_preprocessing')
     origin_root_dir = './data/chufang_data/'
     target_root_dir = './data/chufang_data_processed/'
+    os.system('rm -rf ./data/chufang_data_processed/')
     positive_files_lst = get_all_files(origin_root_dir + '/positive/')
     random.shuffle(positive_files_lst)
     negative_files_lst = get_all_files(origin_root_dir + '/negative/')
     random.shuffle(positive_files_lst)
     positive_files_num, negative_files_num = len(positive_files_lst), len(negative_files_lst)
 
-    train_ratio, val_ratio, test_ratio = 0.65, 0.15, 0.30
+    train_ratio, val_ratio, test_ratio = 0.65, 0.05, 0.30
 
     for i, file_name in enumerate(positive_files_lst[:int(train_ratio*positive_files_num)]):
         print('file_name is ', file_name)
@@ -212,10 +216,12 @@ class ToTensor(object):
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 32, 3, 1)
+        #self.conv1 = nn.Conv2d(3, 32, 3, 1)
+        self.conv1 = nn.Conv2d(3, 64, 3, 1)
         self.relu1 = nn.ReLU()
 
-        self.conv2 = nn.Conv2d(32, 32, 3, 1)
+        #self.conv2 = nn.Conv2d(32, 32, 3, 1)
+        self.conv2 = nn.Conv2d(64, 32, 3, 1)
         self.relu2 = nn.ReLU()
 
         self.conv3 = nn.Conv2d(32, 32, 3, 1)
@@ -228,7 +234,8 @@ class Net(nn.Module):
 
         #self.fc1 = nn.Linear(9216, 128)
         #self.fc1 = nn.Linear(123008, 128)
-        self.fc1 = nn.Linear(508032, 128)
+        #self.fc1 = nn.Linear(508032, 128)
+        self.fc1 = nn.Linear(2064512, 128)
         self.fc2 = nn.Linear(128, 2)
         #self.fc2 = nn.Linear(-1, 2)
 
@@ -247,7 +254,7 @@ class Net(nn.Module):
         x = self.fc1(x)
         #x = nn.Linear(x.size(0), 128)(x)
         x = F.relu(x)
-        x = self.dropout2(x)
+        #x = self.dropout2(x)
         x = self.fc2(x)
         #x = nn.Linear(x.size(0), 2)(x)
         output = F.log_softmax(x, dim=1)
@@ -357,11 +364,6 @@ def main():
 
 
 if __name__=='__main__':
-    #data_preprocessing()
+    data_preprocessing()
     main()
 
-#dataloader = DataLoader(transformed_dataset, batch_size=4, shuffle=True, num_workers=4)
-#for i_batch, sample_batched in enumerate(dataloader):
-#    print(i_batch, sample_batched['image'].size(), sample_batched['label'].size())
-
-print('prog ends here!')
