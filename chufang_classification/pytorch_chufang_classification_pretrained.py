@@ -36,7 +36,6 @@ class ToTensor(object):
         image = image.transpose((2, 0, 1))
         return torch.from_numpy(image), torch.tensor(label)
 
-
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -87,7 +86,7 @@ class Net(nn.Module):
 def get_net():
     model = torchvision.models.resnet101(pretrained = True)
     model.avgpool = nn.AdaptiveAvgPool2d(1)
-    model.fc = nn.Linear(2048,config.num_classes)
+    model.fc = nn.Linear(2048, 2)
     return model
 
 
@@ -161,9 +160,9 @@ def main():
 
     torch.manual_seed(42)
 
-    #device = torch.device("cuda" if use_cuda else "cpu")
-    device = 'cpu'
-    #print('device is ', device)
+    device = torch.device("cuda" if use_cuda else "cpu")
+    #device = 'cpu'
+    print('device is ', device)
 
     kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
 
@@ -183,20 +182,22 @@ def main():
 
     #if LOAD_MODEL is False: 
     #model = Net().to(device)
-    model = get_net()
-    optimizer = optim.Adadelta(model.parameters(), lr=0.5)
+    model = get_net().to(device)
+    #optimizer = optim.Adadelta(model.parameters(), lr=0.5)
+    optimizer = optim.Adadelta(model.parameters(), lr=0.05)
     scheduler = StepLR(optimizer, step_size=1, gamma=0.2)
-    epoch_num = 1
+    epoch_num = 10
     for epoch in range(epoch_num):
         train(model, device, train_loader, optimizer, epoch)
         test(model, device, test_loader)
         scheduler.step()
-    torch.save(model, './chufang_cnn_new.pthmodel')
+    torch.save(model, './chufang_cnn_resnet_pretrained.pthmodel')
+
 
     LOAD_MODEL = True
     if LOAD_MODEL:
         #model = torch.load('./chufang_cnn.pthmodel')
-        model = torch.load('./chufang_cnn_new.pthmodel', map_location='cpu')
+        model = torch.load('./chufang_cnn_resnet_pretrained.pthmodel', map_location='cpu')
         print('model loaded with CPU ! test with loaded model')
         for i in range(10):
             test(model, 'cpu', test_loader)
