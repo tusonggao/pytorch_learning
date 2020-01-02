@@ -1,6 +1,7 @@
 from __future__ import print_function, division
 import os
 import shutil
+import hashlib
 import time
 import sys
 import torch
@@ -37,6 +38,29 @@ def get_all_files(dir_name):   # 递归得到文件夹下的所有文件
                 all_files_lst.append(filepath)
     get_all_files_worker(dir_name)
     return all_files_lst
+
+def filemd5(file_name):
+    with open(file_name, 'rb') as fp:
+        data = fp.read()
+    file_md5 = hashlib.md5(data).hexdigest()
+    return file_md5
+
+print('model md5 is ', filemd5('./chufang_cnn.pthmodel'))
+
+def remove_duplicated_files(file_names_lst):
+
+    md5_set = set()
+    unique_file_names_lst = []
+    duplicated_num = 0
+    for file_name in file_names_lst:
+        file_md5 = filemd5(file_name)
+        if file_md5 in md5_set:
+            duplicated_num += 1
+            continue
+        unique_file_names_lst.append(file_name)
+        md5_set.add(file_md5)
+    print('in remove_duplicated_files() found duplicated_num is ', duplicated_num)
+    return unique_file_names_lst
 
 
 def SaltAndPepper(src_img, percetage=0.1):
@@ -116,9 +140,9 @@ def data_preprocessing(img_size = (256, 256)):
     target_root_dir = './data/chufang_data_processed/'
     shutil.rmtree(target_root_dir, True)   # 删除原有的处理后的文件夹，以防止使用老的数据
 
-    positive_files_lst = get_all_files(origin_root_dir + '/positive/')
+    positive_files_lst = remove_duplicated_files(get_all_files(origin_root_dir + '/positive/'))
     random.shuffle(positive_files_lst)
-    negative_files_lst = get_all_files(origin_root_dir + '/negative/')
+    negative_files_lst = remove_duplicated_files(get_all_files(origin_root_dir + '/negative/'))
     random.shuffle(positive_files_lst)
     positive_files_num, negative_files_num = len(positive_files_lst), len(negative_files_lst)
 
@@ -207,6 +231,7 @@ class ChufangDataset(Dataset):
 
 
 if __name__=='__main__':
-    data_preprocessing()
+    #data_preprocessing()
+    pass
 
 
