@@ -153,7 +153,8 @@ def main():
 
     torch.manual_seed(42)
 
-    device = torch.device("cuda" if use_cuda else "cpu")
+    #device = torch.device("cuda" if use_cuda else "cpu")
+    device = 'cpu'
     #print('device is ', device)
 
     kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
@@ -170,18 +171,26 @@ def main():
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=4, shuffle=True)
 
     #print('get here 222')
+    LOAD_MODEL = False
 
+    #if LOAD_MODEL is False: 
     model = Net().to(device)
     optimizer = optim.Adadelta(model.parameters(), lr=0.5)
     scheduler = StepLR(optimizer, step_size=1, gamma=0.2)
-    epoch_num = 8
+    epoch_num = 1
     for epoch in range(epoch_num):
         train(model, device, train_loader, optimizer, epoch)
         test(model, device, test_loader)
         scheduler.step()
+    torch.save(model, './chufang_cnn.pthmodel')
 
-    if True:
-        torch.save(model.state_dict(), "chufang_cnn.pt")
+    LOAD_MODEL = True
+    if LOAD_MODEL:
+        #model = torch.load('./chufang_cnn.pthmodel')
+        model = torch.load('./chufang_cnn.pthmodel', map_location='cpu')
+        print('model loaded with CPU ! test with loaded model')
+        for i in range(10):
+            test(model, 'cpu', test_loader)
 
     print('get here 333')
 

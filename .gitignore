@@ -1,6 +1,7 @@
 # tusonggao
 chufang_classification/data/
 data/
+*.pthmodel
 *.pt
 
 
