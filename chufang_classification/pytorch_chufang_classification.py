@@ -174,7 +174,7 @@ def main():
     model = Net().to(device)
     optimizer = optim.Adadelta(model.parameters(), lr=0.5)
     scheduler = StepLR(optimizer, step_size=1, gamma=0.2)
-    epoch_num = 1
+    epoch_num = 8
     for epoch in range(epoch_num):
         train(model, device, train_loader, optimizer, epoch)
         test(model, device, test_loader)
@@ -187,7 +187,7 @@ def main():
 
 
 if __name__=='__main__':
-    data_preprocessing()
+    #data_preprocessing()
     main()
 
 
