@@ -153,8 +153,8 @@ def main():
 
     torch.manual_seed(42)
 
-    #device = torch.device("cuda" if use_cuda else "cpu")
-    device = 'cpu'
+    device = torch.device("cuda" if use_cuda else "cpu")
+    #device = 'cpu'
     #print('device is ', device)
 
     kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
@@ -177,7 +177,7 @@ def main():
     model = Net().to(device)
     optimizer = optim.Adadelta(model.parameters(), lr=0.5)
     scheduler = StepLR(optimizer, step_size=1, gamma=0.2)
-    epoch_num = 1
+    epoch_num = 10
     for epoch in range(epoch_num):
         train(model, device, train_loader, optimizer, epoch)
         test(model, device, test_loader)
