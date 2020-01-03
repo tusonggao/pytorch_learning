@@ -18,6 +18,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torchvision
 from torchvision import datasets, transforms
+from torchsummary import summary
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from torch.optim.lr_scheduler import StepLR
@@ -183,6 +184,12 @@ def main():
     #if LOAD_MODEL is False: 
     #model = Net().to(device)
     model = get_net().to(device)
+    print('show network graph')
+
+    summary(model, (3,256,256))
+
+    return 
+
     #optimizer = optim.Adadelta(model.parameters(), lr=0.5)
     optimizer = optim.Adadelta(model.parameters(), lr=0.05)
     scheduler = StepLR(optimizer, step_size=1, gamma=0.2)

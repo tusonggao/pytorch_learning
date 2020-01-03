@@ -19,6 +19,7 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
+from torchsummary import summary
 from torch.optim.lr_scheduler import StepLR
 # Ignore warnings
 import warnings
@@ -175,6 +176,11 @@ def main():
 
     #if LOAD_MODEL is False: 
     model = Net().to(device)
+
+    print('show network grpah')
+    summary(model, (3,256,256))
+    #return 
+
     optimizer = optim.Adadelta(model.parameters(), lr=0.5)
     scheduler = StepLR(optimizer, step_size=1, gamma=0.2)
     epoch_num = 10
