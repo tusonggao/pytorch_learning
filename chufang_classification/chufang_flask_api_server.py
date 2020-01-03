@@ -26,7 +26,6 @@ import argparse
 import warnings
 warnings.filterwarnings("ignore")
 
-
 random_seed = 77777
 random.seed(random_seed)
 from flask import Flask, request
@@ -34,7 +33,7 @@ from werkzeug import secure_filename   # 获取上传文件的文件名
 
 print('prog starts here!')
 
-UPLOAD_FOLDER = 'F:/jianke_chufang_recognition/uploaded_data/'  #  上传路径
+UPLOAD_FOLDER = './data/uploaded_data/'  #  上传路径
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])         #  允许上传的文件类型
 
 app = Flask(__name__)
@@ -86,12 +85,12 @@ class Net(nn.Module):
         output = F.log_softmax(x, dim=1)
         return output
 
-cnn_model = torch.load('./chufang_cnn.pthmodel', map_location='cpu')
+#cnn_model = torch.load('./chufang_cnn.pthmodel', map_location='cpu')
+cnn_model = torch.load('./chufang_cnn_resnet_pretrained.pthmodel', map_location='cpu')
 
 # 验证上传的文件名是否符合要求，文件名必须带点并且符合允许上传的文件类型要求，两者都满足则返回 true
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
-
 
 def get_tensor_data_from_file(file_name, size=(256, 256)):
     im = Image.open(file_name)
@@ -105,7 +104,6 @@ def get_tensor_data_from_file(file_name, size=(256, 256)):
     print('image shape after is ', image.shape)
     return torch.from_numpy(image)
 
-
 def predict(model, data, device='cpu'):
     model.eval()
     with torch.no_grad():
@@ -113,7 +111,6 @@ def predict(model, data, device='cpu'):
         output = model(data)
         print('output is ', output)
         return output
-
 
 @app.route('/check_chufang_file', methods=['GET', 'POST'])
 def check_chufang_file():
@@ -124,14 +121,27 @@ def check_chufang_file():
         file = request.files['file']   # 获取上传的文件
         if file and allowed_file(file.filename):   # 如果文件存在并且符合要求则为 true
             filename = secure_filename(file.filename)   # 获取上传文件的文件名
-            print('filename is ', filename)
+            data = file.read()
+            #file_md5 = hashlib.md5(file.read()).hexdigest()
+            file_md5 = hashlib.md5(data).hexdigest()
+            #file_md5 = hashlib.md5(data).hexdigest()
             print('{} upload successed!'.format(filename))  # 返回保存成功的信息
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))   # 保存文件
-            data = get_tensor_data_from_file(os.path.join(app.config['UPLOAD_FOLDER'], filename), size=(256, 256))
+            new_filename =  file_md5 + '.' + filename.split('.')[-1]
+            print('filename is ', filename, 'file_md5 is ', file_md5, 'new_filename is ', new_filename)
+            #file.save(os.path.join(app.config['UPLOAD_FOLDER'], new_filename))   # 保存文件
+            with open(os.path.join(app.config['UPLOAD_FOLDER'], new_filename), 'wb') as file_w:
+                file_w.write(data)
+            start_t = time.time()
+            data = get_tensor_data_from_file(os.path.join(app.config['UPLOAD_FOLDER'], new_filename), size=(256, 256))
             output = predict(cnn_model, data).numpy().flatten()
+            print('predict cost time: ', time.time()-start_t)
             v1, v2 = output[0], output[1]
+            print('v1 is ', v1, 'v2 is ', v2)
+            if max(v1, v2) > 0:
+                v1, v2 = v1 - max(v1, v2), v2 - max(v1, v2)
             v1, v2 = np.exp(v1)/ (np.exp(v1) + np.exp(v2)), np.exp(v2)/ (np.exp(v1) + np.exp(v2))
-
+            #else:
+            #    v1, v2 = v1 / sum([v1, v2]), v2 / sum([v1, v2])
             return 'Positive: {} Negative: {}'.format(v2, v1)
 
 

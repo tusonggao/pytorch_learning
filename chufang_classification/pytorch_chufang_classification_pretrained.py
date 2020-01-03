@@ -186,18 +186,17 @@ def main():
     #optimizer = optim.Adadelta(model.parameters(), lr=0.5)
     optimizer = optim.Adadelta(model.parameters(), lr=0.05)
     scheduler = StepLR(optimizer, step_size=1, gamma=0.2)
-    epoch_num = 10
+    epoch_num = 3
     for epoch in range(epoch_num):
         train(model, device, train_loader, optimizer, epoch)
         test(model, device, test_loader)
         scheduler.step()
-    torch.save(model, './chufang_cnn_resnet_pretrained.pthmodel')
-
+    torch.save(model, './chufang_cnn_resnet_pretrained_newest.pthmodel')
 
     LOAD_MODEL = True
     if LOAD_MODEL:
         #model = torch.load('./chufang_cnn.pthmodel')
-        model = torch.load('./chufang_cnn_resnet_pretrained.pthmodel', map_location='cpu')
+        model = torch.load('./chufang_cnn_resnet_pretrained_newest.pthmodel', map_location='cpu')
         print('model loaded with CPU ! test with loaded model')
         for i in range(10):
             test(model, 'cpu', test_loader)
