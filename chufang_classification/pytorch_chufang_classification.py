@@ -179,7 +179,7 @@ def main():
 
     print('show network grpah')
     summary(model, (3,256,256))
-    #return 
+    return 
 
     optimizer = optim.Adadelta(model.parameters(), lr=0.5)
     scheduler = StepLR(optimizer, step_size=1, gamma=0.2)
