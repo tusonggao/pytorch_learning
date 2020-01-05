@@ -202,7 +202,7 @@ def main():
 
 
 if __name__=='__main__':
-    #data_preprocessing()
+    data_preprocessing()
     main()
 
 
