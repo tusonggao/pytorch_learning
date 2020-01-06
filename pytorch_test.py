@@ -2,6 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim as optim
 
 class Net(nn.Module):
     def __init__(self):
@@ -38,3 +39,28 @@ print(params[0].size())  # conv1's .weight
 input = torch.randn(1, 1, 32, 32)
 out = net(input)
 print(out)
+
+output = net(input)
+target = torch.randn(10)  # a dummy target, for example
+target = target.view(1, -1)  # make it the same shape as output
+criterion = nn.MSELoss()
+
+loss = criterion(output, target)
+
+print('loss is ', loss)
+print('loss grad_fn is ', loss.grad_fn)  # MSELoss
+print('loss.grad_fn.next_functions[0][0] is ', loss.grad_fn.next_functions[0][0])  # Linear
+print('loss.grad_fn.next_functions[0][0].next_functions[0][0] is', loss.grad_fn.next_functions[0][0].next_functions[0][0])  # ReLU
+
+# create your optimizer
+optimizer = optim.SGD(net.parameters(), lr=0.01)
+
+print('after printing out out')
+# in your training loop:
+optimizer.zero_grad()   # zero the gradient buffers
+output = net(input)
+loss = criterion(output, target)
+loss.backward()
+optimizer.step()    # Does the update
+
+print('prog ends here!')
