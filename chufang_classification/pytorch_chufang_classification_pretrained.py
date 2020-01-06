@@ -124,6 +124,7 @@ def test(model, device, test_loader):
             data, target = data.to(device), target.to(device)
             output = model(data)
             loss = criterion(output, target)
+            print('in test, loss.shape is ', loss.shape)
             test_loss += loss
             #test_loss += F.nll_loss(output, target, reduction='sum').item()  # sum up batch loss
             pred = output.argmax(dim=1, keepdim=True)  # get the index of the max log-probability
@@ -199,7 +200,7 @@ def main():
     #optimizer = optim.Adadelta(model.parameters(), lr=0.5)
     optimizer = optim.Adadelta(model.parameters(), lr=0.05)
     scheduler = StepLR(optimizer, step_size=1, gamma=0.2)
-    epoch_num = 3
+    epoch_num = 1
     for epoch in range(epoch_num):
         train(model, device, train_loader, optimizer, epoch)
         test(model, device, test_loader)
