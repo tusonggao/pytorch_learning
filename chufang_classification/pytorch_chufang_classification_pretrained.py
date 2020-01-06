@@ -93,13 +93,17 @@ def get_net():
 
 def train(model, device, train_loader, optimizer, epoch):
     model.train()
+    criterion = nn.CrossEntropyLoss()
     for batch_idx, (data, target) in enumerate(train_loader):
         #print('in train data is ', data.shape, 'data.dtype is ', data.dtype)
         #print('in train target is ', target.shape, 'target.dtype is ', target.dtype)
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
-        loss = F.nll_loss(output, target)
+
+        #loss = F.nll_loss(output, target)
+        loss = criterion(output, target)
+
         loss.backward()
         optimizer.step()
         time.sleep(0.001)
@@ -113,11 +117,15 @@ def test(model, device, test_loader):
     model.eval()
     test_loss = 0
     correct = 0
+    criterion = nn.CrossEntropyLoss()
+
     with torch.no_grad():
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
             output = model(data)
-            test_loss += F.nll_loss(output, target, reduction='sum').item()  # sum up batch loss
+            loss = criterion(output, target)
+            test_loss += loss
+            #test_loss += F.nll_loss(output, target, reduction='sum').item()  # sum up batch loss
             pred = output.argmax(dim=1, keepdim=True)  # get the index of the max log-probability
             correct += pred.eq(target.view_as(pred)).sum().item()
 
@@ -187,8 +195,6 @@ def main():
     print('show network graph')
 
     summary(model, (3,256,256))
-
-    return 
 
     #optimizer = optim.Adadelta(model.parameters(), lr=0.5)
     optimizer = optim.Adadelta(model.parameters(), lr=0.05)
